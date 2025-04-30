@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Detection and Passport Photo Creator</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="face-api/face-api.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Face Detection and Passport Photo Creator</h1>
+        
+        <div class="photo-container">
+            <span class="photo-label">Live Camera Feed</span>
+            <video id="video" width="640" height="480" autoplay muted></video>
+        </div>
+        
+        <div class="photo-container">
+            <span class="photo-label">Selected Image</span>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="capture">Capture Photo</button>
+            <button id="browse">Browse Photo</button>
+            <button id="rotate">Rotate to Landscape</button>
+            <button id="crop">Crop Face</button>
+            <button id="checkBg">Check Background</button>
+            <button id="checkStatus">Check Status</button>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        </div>
+        
+        <div id="status">
+            <p>Status will appear here</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 

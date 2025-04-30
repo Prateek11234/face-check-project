@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Photo and Signature{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Student Registration</h2>
+    <form id="photo-form" method="post" enctype="multipart/form-data" action="{% url 'complete_registration' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="id_name">Name:</label>
+            <input type="text" id="id_name" name="name" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="id_dob">Date of Birth:</label>
+            <input type="date" id="id_dob" name="dob" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="id_age">Age:</label>
+            <input type="number" id="id_age" name="age" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="id_enrollment_number">Enrollment Number:</label>
+            <input type="number" id="id_enrollment_number" name="enrollment_number" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="id_photo">Photo:</label>
+            <input type="file" id="id_photo" name="photo" accept="image/*" class="form-control">
+            <button type="button" id="check_photo" class="btn btn-primary mt-2">Check Photo</button>
+            <button type="button" id="take_photo" class="btn btn-secondary mt-2">Take Photo</button>
+            <video id="video" width="200" height="150" autoplay style="display:none;"></video>
+            <canvas id="canvas" width="200" height="150" style="display:none;"></canvas>
+            <img id="photo_preview" src="#" alt="Photo Preview" style="display:none;">
+        </div>
+        <div class="form-group">
+            <label for="id_signature">Signature:</label>
+            <input type="file" id="id_signature" name="signature" accept="image/*" class="form-control">
+            <img id="signature_preview" src="#" alt="Signature Preview" style="display:none;">
+            <button type="button" id="save_signature" class="btn btn-success mt-2">Save Signature</button>
+        </div>
+        <button type="submit" class="btn btn-primary">Complete Registration</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const takePhotoButton = document.getElementById('take_photo');
+    const checkPhotoButton = document.getElementById('check_photo');
+    const photoPreview = document.getElementById('photo_preview');
+    const photoInput = document.getElementById('id_photo');
+    const saveSignatureButton = document.getElementById('save_signature');
+    const signatureInput = document.getElementById('id_signature');
+    let streamActive = false;
+
+    takePhotoButton.addEventListener('click', async () => {
+        if (!streamActive) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                takePhotoButton.textContent = 'Capture Photo';
+                streamActive = true;
+            } catch (err) {
+                console.error('Error accessing camera: ', err);
+                alert('Unable to access camera. Please allow camera permissions.');
+            }
+        } else {
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, 200, 150);
+            const imageData = canvas.toDataURL('image/png');
+            photoPreview.src = imageData;
+            photoPreview.style.display = 'block';
+            video.srcObject.getTracks().forEach(track => track.stop());
+            video.style.display = 'none';
+            takePhotoButton.textContent = 'Take Photo';
+            streamActive = false;
+            const blob = dataURLtoBlob(imageData);
+            const file = new File([blob], 'photo.png', { type: 'image/png' });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            photoInput.files = dataTransfer.files;
+        }
+    });
+
+    checkPhotoButton.addEventListener('click', () => {
+        const photoFile = photoInput.files[0];
+        if (photoFile) {
+            const formData = new FormData();
+            formData.append('photo', photoFile);
+
+            // Perform blur detection
+            fetch("{% url 'check_photo' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error processing photo: ' + data.error);
+                } else {
+                    const blurMessage = data.blurry ? 'The image is blurry.' : 'The image is not blurry.';
+                    alert(blurMessage);
+
+                    // Perform brightness detection
+                    fetch("{% url 'check_brightness' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert('Error processing photo for brightness: ' + data.error);
+                        } else {
+                            const brightnessMessage = `The image brightness level is ${data.brightness}.`;
+                            alert(brightnessMessage);
+
+                            // Perform background detection
+                            fetch("{% url 'check_background' %}", {
+                                method: 'POST',
+                                body: formData,
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.error) {
+                                    alert('Error processing photo for background: ' + data.error);
+                                } else {
+                                    const backgroundMessage = data.non_plain_background ? 'The image has a non-plain background.' : 'The image has a plain background.';
+                                    alert(backgroundMessage);
+
+                                    // Perform front face detection
+                                    fetch("{% url 'check_front_face' %}", {
+                                        method: 'POST',
+                                        body: formData,
+                                        headers: {
+                                            'X-CSRFToken': '{{ csrf_token }}'
+                                        }
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.error) {
+                                            alert('Error processing photo for face detection: ' + data.error);
+                                        } else {
+                                            const faceMessage = data.front_face ? 'The face is front-facing.' : 'The face is not front-facing.';
+                                            alert(faceMessage);
+
+                                            // Perform deepfake detection
+                                            fetch("{% url 'check_deepfake' %}", {
+                                                method: 'POST',
+                                                body: formData,
+                                                headers: {
+                                                    'X-CSRFToken': '{{ csrf_token }}'
+                                                }
+                                            })
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                if (data.error) {
+                                                    alert('Error processing photo for deepfake detection: ' + data.error);
+                                                } else {
+                                                    const deepfakeMessage = data.predicted_class === 'Real' ? 'The image is real.' : 'The image is fake.';
+                                                    alert(deepfakeMessage);
+                                                }
+                                            })
+                                            .catch(error => {
+                                                console.error('Error:', error);
+                                                alert('Error processing photo for deepfake detection.');
+                                            });
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error:', error);
+                                        alert('Error processing photo for face detection.');
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Error processing photo for background.');
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error processing photo for brightness.');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error processing photo.');
+            });
+        } else {
+            alert('Please upload a photo file.');
+        }
+    });
+
+    document.getElementById('id_photo').onchange = function() {
+        previewImage(this, 'photo_preview');
+    };
+    document.getElementById('id_signature').onchange = function() {
+        previewImage(this, 'signature_preview');
+    };
+
+    saveSignatureButton.addEventListener('click', () => {
+        const signatureFile = signatureInput.files[0];
+        if (signatureFile) {
+            const formData = new FormData();
+            formData.append('signature', signatureFile);
+
+            fetch("{% url 'process_signature_view' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('signature_preview').src = data.processed_signature_url;
+                    document.getElementById('signature_preview').style.display = 'block';
+                    alert('Signature processed successfully!');
+                } else {
+                    alert('Error processing signature: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error processing signature.');
+            });
+        } else {
+            alert('Please upload a signature file.');
+        }
+    });
+
+    function previewImage(input, previewId) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById(previewId).src = e.target.result;
+                document.getElementById(previewId).style.display = 'block';
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function dataURLtoBlob(dataurl) {
+        const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+            bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        return new Blob([u8arr], { type: mime });
+    }
+</script>
+{% endblock %}
