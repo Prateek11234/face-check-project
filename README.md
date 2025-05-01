@@ -9,4 +9,4 @@ And after this , the project is running .
  
 It has various features like auto crop the photo , horizontally align the photo , check for eyes open or not , background is uniform or not , face is frontal or not etc 
 
-it automatically removes the background of the signature which we uploaded and makes the background uniform .
+It automatically removes the background of the signature which we uploaded and makes the background uniform .
