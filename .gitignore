@@ -15,3 +15,6 @@ git
 venv/
 face-check-project.git/
 new-repo/
+*.h5
+*.keras
+*.pt
