@@ -8,3 +8,10 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+*.zip.001
+del
+git
+venv/
+face-check-project.git/
+new-repo/
